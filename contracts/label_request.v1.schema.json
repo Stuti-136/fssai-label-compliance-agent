@@ -1,0 +1,376 @@
+{
+  "$defs": {
+    "Nutrition": {
+      "additionalProperties": false,
+      "description": "Values per 100 g (solids) or per 100 ml (liquids).",
+      "properties": {
+        "energy_kcal": {
+          "anyOf": [
+            {
+              "maximum": 900,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Energy Kcal"
+        },
+        "protein_g": {
+          "anyOf": [
+            {
+              "maximum": 100,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Protein G"
+        },
+        "carbohydrate_g": {
+          "anyOf": [
+            {
+              "maximum": 100,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Carbohydrate G"
+        },
+        "total_sugars_g": {
+          "anyOf": [
+            {
+              "maximum": 100,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Total Sugars G"
+        },
+        "added_sugars_g": {
+          "anyOf": [
+            {
+              "maximum": 100,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Added Sugars G"
+        },
+        "dietary_fibre_g": {
+          "anyOf": [
+            {
+              "maximum": 100,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Dietary Fibre G"
+        },
+        "total_fat_g": {
+          "anyOf": [
+            {
+              "maximum": 100,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Total Fat G"
+        },
+        "saturated_fat_g": {
+          "anyOf": [
+            {
+              "maximum": 100,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Saturated Fat G"
+        },
+        "trans_fat_g": {
+          "anyOf": [
+            {
+              "maximum": 100,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Trans Fat G"
+        },
+        "sodium_mg": {
+          "anyOf": [
+            {
+              "maximum": 40000,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Sodium Mg"
+        }
+      },
+      "title": "Nutrition",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": "1.0",
+      "default": "1.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "product_name": {
+      "maxLength": 120,
+      "minLength": 2,
+      "title": "Product Name",
+      "type": "string"
+    },
+    "brand_name": {
+      "anyOf": [
+        {
+          "maxLength": 80,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Brand Name"
+    },
+    "declared_category": {
+      "default": "unspecified",
+      "enum": [
+        "unspecified",
+        "biscuits_bakery",
+        "dairy",
+        "beverages",
+        "meat_fish",
+        "infant_nutrition",
+        "supplements",
+        "confectionery",
+        "other"
+      ],
+      "title": "Declared Category",
+      "type": "string"
+    },
+    "physical_state": {
+      "enum": [
+        "solid",
+        "liquid"
+      ],
+      "title": "Physical State",
+      "type": "string"
+    },
+    "net_quantity_value": {
+      "exclusiveMinimum": 0,
+      "maximum": 100000,
+      "title": "Net Quantity Value",
+      "type": "number"
+    },
+    "net_quantity_unit": {
+      "enum": [
+        "g",
+        "kg",
+        "ml",
+        "l"
+      ],
+      "title": "Net Quantity Unit",
+      "type": "string"
+    },
+    "package_type": {
+      "enum": [
+        "pouch",
+        "box",
+        "wrapper",
+        "bottle",
+        "jar",
+        "can",
+        "other"
+      ],
+      "title": "Package Type",
+      "type": "string"
+    },
+    "package_surface_area_cm2": {
+      "exclusiveMinimum": 0,
+      "maximum": 10000,
+      "title": "Package Surface Area Cm2",
+      "type": "number"
+    },
+    "ingredients_text": {
+      "maxLength": 2000,
+      "minLength": 3,
+      "title": "Ingredients Text",
+      "type": "string"
+    },
+    "front_of_pack_text": {
+      "items": {
+        "type": "string"
+      },
+      "maxItems": 20,
+      "title": "Front Of Pack Text",
+      "type": "array"
+    },
+    "diet_mark": {
+      "enum": [
+        "veg",
+        "non_veg",
+        "none"
+      ],
+      "title": "Diet Mark",
+      "type": "string"
+    },
+    "allergen_statement": {
+      "anyOf": [
+        {
+          "maxLength": 500,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Allergen Statement"
+    },
+    "fssai_license_no": {
+      "anyOf": [
+        {
+          "pattern": "^\\d{14}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Fssai License No"
+    },
+    "fssai_logo_present": {
+      "title": "Fssai Logo Present",
+      "type": "boolean"
+    },
+    "manufacturer_name": {
+      "anyOf": [
+        {
+          "maxLength": 120,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Manufacturer Name"
+    },
+    "manufacturer_address": {
+      "anyOf": [
+        {
+          "maxLength": 300,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Manufacturer Address"
+    },
+    "batch_marking_present": {
+      "title": "Batch Marking Present",
+      "type": "boolean"
+    },
+    "date_marking": {
+      "enum": [
+        "best_before",
+        "use_by",
+        "expiry",
+        "none"
+      ],
+      "title": "Date Marking",
+      "type": "string"
+    },
+    "is_imported": {
+      "default": false,
+      "title": "Is Imported",
+      "type": "boolean"
+    },
+    "country_of_origin": {
+      "anyOf": [
+        {
+          "maxLength": 60,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Country Of Origin"
+    },
+    "nutrition": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Nutrition"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    }
+  },
+  "required": [
+    "product_name",
+    "physical_state",
+    "net_quantity_value",
+    "net_quantity_unit",
+    "package_type",
+    "package_surface_area_cm2",
+    "ingredients_text",
+    "diet_mark",
+    "fssai_logo_present",
+    "batch_marking_present",
+    "date_marking"
+  ],
+  "title": "LabelRequest",
+  "type": "object"
+}

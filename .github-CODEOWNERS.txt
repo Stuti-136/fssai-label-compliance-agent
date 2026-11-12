@@ -1,0 +1,4 @@
+# Rename to .github/CODEOWNERS and replace with real GitHub handles.
+/app/api.py /app/contracts.py /app/runs.py /app/obs.py /app/logging_setup.py /docker-compose.yml /Dockerfile /ops/ /web/ /docs/RUNBOOK.md /docs/INCIDENT_LOG.md   @sp
+/app/agents/ /app/claims.py /app/rules.py /app/category.py /app/verifier.py /app/llm.py /app/worker.py /app/pipeline.py                                          @sg
+/app/rag/ /corpus/ /app/prompts/ /app/prompts.py /app/guardrails.py /app/quality.py /eval/ /loadtest/ /llm_stub/ /docs/SLO.md /docs/PERFORMANCE.md                @m

@@ -1,0 +1,3 @@
+apiVersion: 1
+providers:
+  - {name: main, folder: "", type: file, options: {path: /var/lib/grafana/dashboards}}

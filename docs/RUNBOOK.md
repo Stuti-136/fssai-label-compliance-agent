@@ -1,0 +1,11 @@
+# Runbook - two most likely failure modes
+
+## 1. LLM provider unavailable / slow (circuit breaker open)
+**Symptom:** results carry `degraded:"llm_unavailable"` (UI shows "Degraded mode"); `summary_source` = template; Grafana "LLM retry rate & circuit state" shows state 2 or climbing retries; run latency may rise by timeout x retries before the breaker opens.
+**Confirm:** `docker compose logs researcher assessor | grep "circuit breaker OPEN"`; `curl localhost:9090/api/v1/query?query=llm_circuit_state`; `docker compose exec api python -c "import httpx,os;print(httpx.get(os.environ['LLM_BASE_URL']+'/models',timeout=5).status_code)"` (provider reachability); for the stub: `curl` its `/healthz` (shows mode).
+**Recover:** verdicts are unaffected (computed, verified), so service keeps working in degraded mode. Fix the cause (key/quota/provider status; stub: set mode `ok`). Breaker half-opens after `CB_RESET_S` and closes on the first success - no restart needed. If the provider is down for long: set `LLM_BASE_URL=` (empty) in `.env` and `docker compose up -d researcher assessor` to run model-free. Degraded results are never written to the run cache.
+
+## 2. Queue backlog / workers not consuming (runs stuck `queued`/`researching`, then `failed` by deadline)
+**Symptom:** `queue_depth` rising; users see `status` not advancing; after `RUN_DEADLINE_S` runs become `failed` (`complete:false`, `regulatory-review`); p95 alert.
+**Confirm:** `docker compose ps` (health of researcher/assessor); `docker compose exec redis redis-cli llen q:research` and `q:assess`; `docker compose logs --tail=50 researcher | grep -E "stage failed|redis unavailable"`; index present: `curl localhost:8000/readyz`.
+**Recover:** (a) crashed/unhealthy worker: `docker compose restart researcher assessor`; (b) saturation: `docker compose up -d --scale researcher=3` (or assessor); (c) poison input failing repeatedly: find in logs by `run_id`, it is auto-failed after `WORKER_MAX_ATTEMPTS`; (d) index missing/mismatched embedder (`readyz` 503, "re-run ingest" in logs): `docker compose run --rm indexer`; (e) Redis down: `docker compose up -d redis` (AOF persistence keeps queue and runs). Stuck runs fail themselves via the watchdog; caller resubmits (same `Idempotency-Key` returns the old run, so use a new key).
