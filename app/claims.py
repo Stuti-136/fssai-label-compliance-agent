@@ -28,9 +28,10 @@ CLAIMS = [
          nutrient="sodium_mg", kind="max_abs", schedule="ACR-2018:Schedule I/Sodium"),
     dict(key="health_claim", phrase="health claim", pats=[r"\bboosts? immunity\b", r"\bimmunity\b", r"\bheart[- ]healthy\b",
          r"\bhelps? (lower|reduce|control|manage)\b", r"\bprevents?\b", r"\bcures?\b", r"\bdiabetic[- ]friendly\b",
-         r"\bsupports? (heart|digestion|immunity)\b"], type="health", support="ACR-2018:Reg 6"),
+         r"\bsupports? (heart|digestion|immunity)\b"], type="health", support="ACR-2018:Reg 7"),
     dict(key="descriptor_claim", phrase="descriptor", pats=[r"\b100% natural\b", r"\bnatural\b", r"\bpure\b", r"\bfresh\b"],
-         type="descriptor", support="ACR-2018:Reg 7"),
+        type="descriptor", support="ACR-2018:Reg 9",
+schedule="ACR-2018:Schedule V"),
 ]
 UNIT = {"g": 1.0, "mg": 0.001}
 

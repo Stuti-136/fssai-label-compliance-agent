@@ -4,3 +4,9 @@ __pycache__/
 .pytest_cache/
 data/
 *.zip
+
+# Local Python environment
+.venv/
+
+# Local backups
+corpus/backups/

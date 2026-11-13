@@ -114,16 +114,16 @@ RULES = [
     Rule("R04_diet_mark", "Vegetarian / non-vegetarian mark", D + "Reg 5(4)", ["vegetarian", "mark"], r_diet),
     Rule("R05_additives", "Food additive declaration", D + "Reg 5(5)", ["functional class", "INS"], r_additives),
     Rule("R06_manufacturer", "Manufacturer name and address", D + "Reg 5(6)", ["name and complete address"], r_mfr),
-    Rule("R07_net_quantity", "Net quantity", D + "Reg 5(7)", ["net quantity"], r_qty),
-    Rule("R08_batch", "Lot / batch identification", D + "Reg 5(8)", ["lot number", "batch"], r_batch),
-    Rule("R09_date", "Date marking", D + "Reg 5(9)", ["date marking", "best before"], r_date),
-    Rule("R10_origin", "Country of origin (imported food)", D + "Reg 5(10)", ["country of origin"], r_origin),
-    Rule("R11_allergen", "Allergen declaration", D + "Reg 5(11)", ["allergen"], r_allergen),
-    Rule("R12_license", "FSSAI logo and licence number", D + "Reg 5(12)", ["logo", "licence"], r_license),
-    Rule("R13_small_pack", "Small-package exemption", D + "Reg 7", ["surface area", "less than"], r_small_pack),
+    Rule("R07_net_quantity", "Net quantity", D + "Reg 5(8)", ["net quantity"], r_qty),
+    Rule("R08_batch", "Lot / batch identification", D + "Reg 5(9)", ["lot number", "batch"], r_batch),
+    Rule("R09_date", "Date marking", D + "Reg 5(10)", ["date marking", "best before"], r_date),
+    Rule("R10_origin", "Country of origin (imported food)", D + "Reg 5(12)", ["country of origin"], r_origin),
+    Rule("R11_allergen", "Allergen declaration", D + "Reg 5(14)", ["allergen"], r_allergen),
+    Rule("R12_license", "FSSAI logo and licence number", D + "Reg 5(7)", ["logo", "licence"], r_license),
+    Rule("R13_small_pack", "Small-package exemption", D + "Reg 8", ["surface area", "less than"], r_small_pack),
 ]
-CLAIM_GENERAL = [D + "Reg 5(3)", "ACR-2018:Reg 4", "ACR-2018:Reg 5"]
 
+CLAIM_GENERAL = [D + "Reg 5(3)", "ACR-2018:Reg 4", "ACR-2018:Reg 5"]
 
 def all_referenced_clauses() -> list[str]:
     s = {r.clause for r in RULES} | set(CLAIM_GENERAL)
