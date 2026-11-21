@@ -8,7 +8,7 @@
 * Freshness (D2): index_meta.json records build time, document versions + hashes, chunk count, throughput.
 """
 from __future__ import annotations
-import argparse, hashlib, json, logging, os, shutil, sys, time
+import argparse, hashlib, json, logging, os, shutil, sys, tempfile, time, uuid
 from pathlib import Path
 import numpy as np
 from langchain_community.vectorstores import FAISS
@@ -16,6 +16,7 @@ from ..config import get_settings
 from ..logging_setup import setup_logging, log
 from .chunking import parse_file
 from .embedders import make_embedder
+from .index_paths import publish_index, resolve_index_dir
 
 logger = logging.getLogger("ingest")
 
@@ -44,17 +45,30 @@ def run_ingest(corpus: str | None = None, out: str | None = None, reembed: bool 
         cs = parse_file(f)
         if not cs:
             raise SystemExit(f"{f.name}: parsed 0 chunks")
+        doc_id = cs[0].doc_id
+        if doc_id in docs:
+            raise ValueError(
+                f"multiple source files map to {doc_id}: "
+                f"{docs[doc_id]['file']} and {f.name}; ingest one curated "
+                "version per document id to avoid mixing regulatory editions"
+            )
         chunks += cs
-        docs[cs[0].doc_id] = {"file": f.name, "version": cs[0].doc_version, "title": cs[0].doc_title,
-                              "sha256": hashlib.sha256(f.read_bytes()).hexdigest(), "chunks": len(cs)}
+        docs[doc_id] = {"file": f.name, "version": cs[0].doc_version, "title": cs[0].doc_title,
+                        "sha256": hashlib.sha256(f.read_bytes()).hexdigest(), "chunks": len(cs)}
     emb = make_embedder()
     eid = getattr(emb, "id", "unknown")
-    version = hashlib.sha1((eid + "|" + "|".join(sorted(c.content_hash for c in chunks))).encode()).hexdigest()[:12]
-    prev_chunks, prev_vecs, prev_meta = _load_prev(out_dir)
+    fingerprint = {
+        "embedder": eid,
+        "chunks": sorted(c.content_hash for c in chunks),
+        "documents": docs,
+    }
+    version = hashlib.sha1(
+        json.dumps(fingerprint, sort_keys=True, separators=(",", ":")).encode()
+    ).hexdigest()[:12]
+    active_dir = resolve_index_dir(out_dir)
+    prev_chunks, prev_vecs, prev_meta = _load_prev(active_dir)
     if prev_meta.get("index_version") == version and not reembed and not reembed_doc \
-            and (out_dir / "faiss" / "index.faiss").exists():
-        prev_meta["last_checked_at"] = time.time()
-        (out_dir / "index_meta.json").write_text(json.dumps(prev_meta, indent=2))
+            and (active_dir / "faiss" / "index.faiss").exists():
         log(logger, "index unchanged; no-op", version=version)
         return {**prev_meta, "noop": True}
 
@@ -73,28 +87,29 @@ def run_ingest(corpus: str | None = None, out: str | None = None, reembed: bool 
     emb_s = max(time.perf_counter() - t_emb, 1e-9)
     vecs = np.vstack([cache[c.content_hash] for c in chunks]).astype("float32")
 
-    tmp = out_dir / ".tmp"
-    shutil.rmtree(tmp, ignore_errors=True)
-    tmp.mkdir()
-    vs = FAISS.from_embeddings([(c.embed_text, vecs[i].tolist()) for i, c in enumerate(chunks)], emb,
-                               metadatas=[c.to_dict() for c in chunks], ids=[c.chunk_id for c in chunks])
-    vs.save_local(str(tmp / "faiss"))
-    np.save(tmp / "vectors.npy", vecs)
-    (tmp / "chunks.jsonl").write_text("\n".join(json.dumps(c.to_dict()) for c in chunks))
-    total_s = time.perf_counter() - t_all
-    meta = {"index_version": version, "built_at": time.time(), "last_checked_at": time.time(), "embedder": eid,
-            "chunks": len(chunks), "chunks_embedded_this_run": len(todo), "documents": docs,
-            "embed_seconds": round(emb_s, 3), "total_seconds": round(total_s, 3),
-            "throughput_chunks_per_s": round(len(chunks) / total_s, 2), "retrieval_ready": True}
-    (tmp / "index_meta.json").write_text(json.dumps(meta, indent=2))
-    for name in ("faiss", "vectors.npy", "chunks.jsonl", "index_meta.json"):  # swap in; meta last = readiness marker
-        dst = out_dir / name
-        if dst.is_dir():
-            shutil.rmtree(dst)
-        elif dst.exists():
-            dst.unlink()
-        shutil.move(str(tmp / name), str(dst))
-    shutil.rmtree(tmp, ignore_errors=True)
+    generations_dir = out_dir / "generations"
+    generations_dir.mkdir(exist_ok=True)
+    tmp = Path(tempfile.mkdtemp(prefix=".building-", dir=generations_dir))
+    try:
+        vs = FAISS.from_embeddings([(c.embed_text, vecs[i].tolist()) for i, c in enumerate(chunks)], emb,
+                                   metadatas=[c.to_dict() for c in chunks], ids=[c.chunk_id for c in chunks])
+        vs.save_local(str(tmp / "faiss"))
+        np.save(tmp / "vectors.npy", vecs)
+        (tmp / "chunks.jsonl").write_text("\n".join(json.dumps(c.to_dict()) for c in chunks))
+        total_s = time.perf_counter() - t_all
+        meta = {"index_version": version, "built_at": time.time(), "last_checked_at": time.time(), "embedder": eid,
+                "chunks": len(chunks), "chunks_embedded_this_run": len(todo), "documents": docs,
+                "embed_seconds": round(emb_s, 3), "total_seconds": round(total_s, 3),
+                "throughput_chunks_per_s": round(len(chunks) / total_s, 2), "retrieval_ready": True}
+        (tmp / "index_meta.json").write_text(json.dumps(meta, indent=2))
+
+        generation = generations_dir / f"{version}-{uuid.uuid4().hex}"
+        os.replace(tmp, generation)
+    finally:
+        if tmp.exists():
+            shutil.rmtree(tmp)
+
+    publish_index(out_dir, generation)
     check_rule_clauses(chunks)
     log(logger, "index built", **{k: meta[k] for k in ("index_version", "chunks", "chunks_embedded_this_run", "embedder")})
     return meta

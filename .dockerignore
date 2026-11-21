@@ -1,6 +1,15 @@
 .git
+.venv
 __pycache__
 *.pyc
 .env
+.env.*
+!.env.example
 eval/results
 .pytest_cache
+data
+index_data
+.streamlit/secrets.toml
+*.pem
+*.key
+*.tmp

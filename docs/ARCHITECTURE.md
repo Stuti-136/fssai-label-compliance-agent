@@ -28,7 +28,7 @@
 | researcher | retrieval + many tool calls; the replica to scale (`--scale researcher=3`) (**scaling, resource profile**) |
 | assessor | deterministic compute + verification; separate failure domain: it can restart without losing research, bundle persists in Redis (**failure isolation, independent release**) |
 | redis | stateful queue/store; persisted volume (**failure isolation**) |
-| indexer | corpus pipeline releases independently of the service; swaps the index atomically (meta file written last) (**independent release**) |
+| indexer | corpus pipeline releases independently of the service; writes immutable index generations and atomically switches `active_index.json` (**independent release**) |
 | llm-stub | removes provider rate limits from load tests; fault injection for breaker demo (**failure isolation**) |
 | jaeger, prometheus, grafana, cadvisor | observability plane, no coupling to run path |
 

@@ -10,7 +10,8 @@ Body `LabelRequest` (additional properties forbidden):
 | schema_version | "1.0" | |
 | product_name | str 2-120 | free text -> guardrails |
 | brand_name | str <=80, opt | free text |
-| declared_category | enum unspecified, biscuits_bakery, dairy, beverages, meat_fish, infant_nutrition, supplements, confectionery, other | |
+| declared_category | enum unspecified, biscuits_bakery, beverages_juices, dairy_products, snacks_savoury, confectionery_chocolates, cereals_breakfast, instant_ready_to_eat, spices_seasonings, sauces_dips_condiments, edible_oils_fats, pulses_packaged_grains, nutritional_health_foods, other; legacy values dairy, beverages, meat_fish, infant_nutrition, supplements, confectionery remain accepted | |
+| custom_category | str 2-80, opt | required when declared_category is `other`; recorded as user-provided description, not as evidence of coverage |
 | physical_state | solid \| liquid | |
 | net_quantity_value / unit | float (0, 100000] / g,kg,ml,l | **cross-field**: solid->g/kg, liquid->ml/l |
 | package_type | pouch, box, wrapper, bottle, jar, can, other | |
@@ -33,9 +34,13 @@ Free-text fields additionally pass injection and toxicity detection **at the bou
 Responses: `202 {run_id, status_url, trace_url, cached}` | `422 {error, quarantined:true, quarantine_id, errors:[{field,code,message}], agent_run_started:false}` | `429 {retry_after_s}`.
 Rejected records are stored in Redis list `quarantine` (`GET /v1/quarantine`) with field-level errors. **No agent run is created.**
 
+Category values are descriptive input, not a coverage guarantee. The automated category workflow remains configured only
+for biscuits and bakery snacks. Other categories are accepted but escalated for human review; no product-specific
+requirements are inferred from the category label.
+
 ## 2. GET /v1/runs/{id}
 `{run_id, status: queued|researching|assessing|completed|failed, result?}`. `result`:
-`route, route_reason, complete, category, claims_detected, findings[], escalations[], escalation_path, summary, summary_source,
+`route, route_reason, complete, category, category_details, claims_detected, findings[], escalations[], escalation_path, summary, summary_source,
 verification{ok,attempts,repaired,failures}, degraded, versions{prompt,index,corpus,retrieval_mode}, stats{researcher,assessor,cost_usd,tokens,e2e_seconds}, disclaimer`.
 Finding: `{id, kind: rule|claim, title, status: met|unmet|needs_human|not_applicable, detail, computed?, citations[{doc_id, clause_id, chunk_id, quote}]}`.
 A run that did not complete has `status:"failed"`, `complete:false`, `route:"regulatory-review"`, no findings.
@@ -50,4 +55,4 @@ A run that did not complete has `status:"failed"`, `complete:false`, `route:"reg
 OpenAI-compatible `POST {LLM_BASE_URL}/chat/completions`; usage tokens used for cost. Swap provider by env only.
 
 ## 6. Corpus pipeline contract
-Input: `corpus/raw/*.md|txt|pdf` (md header `# DOC: id | title | version`, clauses `## [clause] title`). Output `INDEX_DIR`: `faiss/`, `vectors.npy`, `chunks.jsonl`, `index_meta.json` (version, built_at, embedder, documents{version,sha256}, chunks, throughput).
+Input: `CORPUS_DIR/*.md|txt|pdf` (md header `# DOC: id | title | version`, clauses `## [clause] title`). Output `INDEX_DIR` contains `active_index.json` and immutable `generations/<version-id>/` directories containing `faiss/`, `vectors.npy`, `chunks.jsonl`, and `index_meta.json` (document versions/hashes, embedder, chunks, throughput). Existing root-level indexes remain readable until the first generation is published. Source editions mapping to the same canonical ID must be curated before ingestion to avoid mixing versions.

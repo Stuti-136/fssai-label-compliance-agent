@@ -1,0 +1,15 @@
+  if(r.degraded)h+='<p class="needs_human">Degraded mode: '+esc(r.degraded)+'</p>';
+  h+='<p><b>Escalation path:</b> '+esc(r.escalation_path||'')+'</p>';
+  (r.escalations||[]).forEach(e=>h+='<p class="needs_human">⚠ '+esc(e.trigger)+': '+esc(e.detail)+'</p>');
+  h+='<table><tr><th>Requirement</th><th>Status</th><th>Detail</th><th>Citations</th></tr>';
+  (r.findings||[]).forEach(f=>{h+='<tr><td>'+esc(f.title)+'<br><span class="q">'+esc(f.id)+'</span></td><td class="'+f.status+'">'+f.status+'</td><td>'+esc(f.detail)+'</td><td>'+
+    f.citations.map(c=>'<div><b>'+esc(c.clause_id)+'</b>: “'+esc(c.quote)+'”</div>').join('')+'</td></tr>'});
+  h+='</table><p class="q">verification: '+JSON.stringify(r.verification)+' | versions: '+JSON.stringify(r.versions||{})+' | cost $'+((r.stats||{}).cost_usd||0)+
+    ' | <a href="/v1/runs/'+id+'/trace" target="_blank">full trace</a></p><p>Was this useful? <button onclick="fb(\''+id+'\',true)">Yes</button><button onclick="fb(\''+id+'\',false)">No</button>
+    <input id="why" placeholder="reason (optional)"></p><p class="q">'+esc(r.disclaimer)+'</p>';
+  document.getElementById('out').innerHTML=h;
+}
+async function fb(id,ok){const r=await fetch('/v1/runs/'+id+'/feedback',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({satisfactory:ok,reason:document.getElementById('why')?.value||''})});
+  document.getElementById('st').textContent=r.ok?'feedback saved':'feedback rejected'}
+load('protein_low');
+</script></body></html>

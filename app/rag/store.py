@@ -7,6 +7,7 @@ from pathlib import Path
 from langchain_community.vectorstores import FAISS
 from ..config import get_settings
 from .embedders import make_embedder
+from .index_paths import index_marker, read_index_bytes, resolve_index_dir
 
 
 def _tok(t: str) -> list[str]:
@@ -15,17 +16,30 @@ def _tok(t: str) -> list[str]:
 
 class CorpusIndex:
     def __init__(self, index_dir: str | None = None):
-        self.dir = Path(index_dir or get_settings().index_dir)
+        self.root = Path(index_dir or get_settings().index_dir)
+        self.dir = self.root
         self.lock = threading.RLock()
-        self._mtime = 0.0
+        self._marker_path = index_marker(self.root)
+        self._marker_contents = b""
         self.meta, self.chunks, self.vs = {}, {}, None
         self.load()
 
     def load(self):
         with self.lock:
+            while True:
+                marker_path = index_marker(self.root)
+                marker_contents = read_index_bytes(marker_path)
+                index_dir = resolve_index_dir(self.root)
+                resolved_marker = index_marker(self.root)
+                resolved_contents = read_index_bytes(resolved_marker)
+                if marker_path == resolved_marker and marker_contents == resolved_contents:
+                    break
+
+            self.dir = index_dir
+            self._marker_path = resolved_marker
+            self._marker_contents = resolved_contents
             mp = self.dir / "index_meta.json"
             self.meta = json.loads(mp.read_text())
-            self._mtime = mp.stat().st_mtime
             self.emb = make_embedder()
             if getattr(self.emb, "id", None) != self.meta["embedder"]:
                 raise RuntimeError(f"index built with {self.meta['embedder']} but runtime embedder is "
@@ -37,7 +51,8 @@ class CorpusIndex:
 
     def reload_if_changed(self):
         try:
-            if (self.dir / "index_meta.json").stat().st_mtime != self._mtime:
+            marker = index_marker(self.root)
+            if marker != self._marker_path or read_index_bytes(marker) != self._marker_contents:
                 self.load()
         except FileNotFoundError:
             pass
@@ -60,7 +75,8 @@ class CorpusIndex:
 
     def _pass(self, cid, **extra):
         c = self.chunks[cid]
-        return {"chunk_id": cid, "doc_id": c["doc_id"], "clause_id": c["clause_id"], "title": c["title"],
+        return {"chunk_id": cid, "doc_id": c["doc_id"], "doc_title": c["doc_title"],
+                "doc_version": c["doc_version"], "clause_id": c["clause_id"], "title": c["title"],
                 "text": c["text"], **extra}
 
     @lru_cache(maxsize=512)
@@ -89,6 +105,10 @@ class CorpusIndex:
         return sorted(out, key=lambda x: -x[1])[:k]
 
     def search(self, q: str, mode: str = "hybrid", doc_id: str | None = None, k: int = 5) -> list[dict]:
+        if mode not in {"semantic", "lexical", "hybrid"}:
+            raise ValueError(f"unsupported retrieval mode: {mode}")
+        if k < 1:
+            raise ValueError("k must be at least 1")
         self.reload_if_changed()
         with self.lock:
             if mode == "semantic":
@@ -99,7 +119,7 @@ class CorpusIndex:
             for lst in (self.semantic(q, 20, doc_id), self.lexical(q, 20, doc_id)):
                 for r, (c, _) in enumerate(lst):
                     fused[c] = fused.get(c, 0) + 1 / (60 + r)
-            top = sorted(fused.items(), key=lambda x: -x[1])[:k]
+            top = sorted(fused.items(), key=lambda x: (-x[1], x[0]))[:k]
             return [self._pass(c, score=round(s, 4), mode="hybrid") for c, s in top]
 
     def lookup(self, ref: str) -> list[dict]:

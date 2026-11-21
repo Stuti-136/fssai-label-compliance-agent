@@ -1,9 +1,24 @@
 .env
+.env.*
+!.env.example
 __pycache__/
 *.pyc
 .pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+eval/results/
+.streamlit/secrets.toml
 data/
+index_data/
+corpus/active/
 *.zip
+*.sqlite
+*.sqlite3
+*.pem
+*.key
+*.tmp
 
 # Local Python environment
 .venv/

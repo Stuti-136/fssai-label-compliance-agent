@@ -78,7 +78,7 @@ def draft_findings(req: dict, bundle: dict, evidence: dict) -> list[dict]:
 
         if r.id == "R13_small_pack":
             if not ps:
-                if req["package_surface_area_cm2"] < 100:
+                if req["package_surface_area_cm2"] <= 100:
                     out.append({
                         "id": r.id,
                         "kind": "rule",
@@ -86,7 +86,7 @@ def draft_findings(req: dict, bundle: dict, evidence: dict) -> list[dict]:
                         "status": "needs_human",
                         "clause_ref": r.clause,
                         "detail": (
-                            "Package surface area is under 100 cm2 but the "
+                            "Package surface area is at or below 100 cm2 but the "
                             "exemption provision was not retrieved; human "
                             "review required."
                         ),
@@ -95,13 +95,37 @@ def draft_findings(req: dict, bundle: dict, evidence: dict) -> list[dict]:
                 continue
 
             m = re.search(
-                r"less than\s+(\d+)\s+square",
+                r"\b(not more than|less than|does not exceed)\s+"
+                r"(\d+(?:\.\d+)?)\s+square\s+centimet(?:re|er)s?\b",
                 ps[0]["text"],
                 re.I,
             )
-            thr = float(m.group(1)) if m else 100.0
+            if not m:
+                out.append({
+                    "id": r.id,
+                    "kind": "rule",
+                    "title": r.title,
+                    "status": "needs_human",
+                    "clause_ref": r.clause,
+                    "detail": (
+                        "The package-size threshold could not be reliably "
+                        "parsed from the retrieved exemption provision."
+                    ),
+                    "citations": [
+                        cite(ps[0], best_sentence(ps[0]["text"], r.keywords))
+                    ],
+                })
+                continue
 
-            if req["package_surface_area_cm2"] < thr:
+            comparator, raw_threshold = m.groups()
+            thr = float(raw_threshold)
+            applies = (
+                req["package_surface_area_cm2"] <= thr
+                if comparator.lower() != "less than"
+                else req["package_surface_area_cm2"] < thr
+            )
+
+            if applies:
                 out.append({
                     "id": r.id,
                     "kind": "rule",
@@ -110,7 +134,8 @@ def draft_findings(req: dict, bundle: dict, evidence: dict) -> list[dict]:
                     "clause_ref": r.clause,
                     "detail": (
                         f"Package surface area "
-                        f"{req['package_surface_area_cm2']} cm2 is below "
+                        f"{req['package_surface_area_cm2']} cm2 is "
+                        f"{'at or below' if comparator.lower() != 'less than' else 'below'} "
                         f"{thr:g} cm2, so a small-package exemption may "
                         "apply to some declarations. The provision leaves "
                         "applicability to the analyst or authority."
@@ -439,8 +464,10 @@ def build_assessor(ctx):
                     else "category_conflict"
                 ),
                 "detail": (
-                    f"Product classified as '{cat['category']}'; "
-                    "the corpus covers biscuits and bakery snacks only."
+                    f"Product category: {cat.get('display_category', cat['category'])}. "
+                    "The automated category workflow is configured only for biscuits "
+                    "and bakery snacks; no category-specific determination is made "
+                    "outside that workflow."
                     if not cat["conflict"]
                     else "Declared category conflicts with the product description."
                 ),
@@ -700,6 +727,7 @@ def run_assess(ctx) -> dict:
         "route": st["route"],
         "route_reason": st["reason"],
         "category": bundle["category"]["category"],
+        "category_details": bundle["category"],
         "claims_detected": [
             c["claim_text"] for c in bundle["claims"]
         ],

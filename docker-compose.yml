@@ -49,6 +49,16 @@ services:
       retries: 10
       start_period: 20s
 
+  streamlit:
+    <<: *app
+    command: ["streamlit", "run", "streamlit_app.py", "--server.address=0.0.0.0", "--server.port=8501"]
+    environment:
+      SERVICE_NAME: streamlit
+      FSSAI_API_BASE_URL: http://api:8000
+    ports: ["8501:8501"]
+    depends_on:
+      api: {condition: service_healthy}
+
   researcher:                  # agent 1. Retrieval-heavy; scale this (--scale researcher=3). No published ports.
     <<: *app
     command: ["python", "-m", "app.worker"]

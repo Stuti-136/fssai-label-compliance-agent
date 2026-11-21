@@ -3,11 +3,32 @@ Export JSON Schema:  python -m app.contracts"""
 from __future__ import annotations
 import json, sys
 from typing import Literal, Optional
-from pydantic import BaseModel, Field, ValidationError, model_validator
+from pydantic import BaseModel, Field, ValidationError, field_validator, model_validator
 from . import guardrails
 
-Category = Literal["unspecified", "biscuits_bakery", "dairy", "beverages", "meat_fish", "infant_nutrition",
-                   "supplements", "confectionery", "other"]
+Category = Literal[
+    "unspecified",
+    "biscuits_bakery",
+    "beverages_juices",
+    "dairy_products",
+    "snacks_savoury",
+    "confectionery_chocolates",
+    "cereals_breakfast",
+    "instant_ready_to_eat",
+    "spices_seasonings",
+    "sauces_dips_condiments",
+    "edible_oils_fats",
+    "pulses_packaged_grains",
+    "nutritional_health_foods",
+    "other",
+    # Retained for clients using the original request schema.
+    "dairy",
+    "beverages",
+    "meat_fish",
+    "infant_nutrition",
+    "supplements",
+    "confectionery",
+]
 
 
 class Nutrition(BaseModel):
@@ -47,6 +68,7 @@ class LabelRequest(BaseModel):
     product_name: str = Field(..., min_length=2, max_length=120)
     brand_name: Optional[str] = Field(None, max_length=80)
     declared_category: Category = "unspecified"
+    custom_category: Optional[str] = Field(None, min_length=2, max_length=80)
     physical_state: Literal["solid", "liquid"]
     net_quantity_value: float = Field(..., gt=0, le=100000)
     net_quantity_unit: Literal["g", "kg", "ml", "l"]
@@ -66,8 +88,20 @@ class LabelRequest(BaseModel):
     country_of_origin: Optional[str] = Field(None, max_length=60)
     nutrition: Optional[Nutrition] = None
 
+    @field_validator("custom_category", mode="before")
+    @classmethod
+    def normalize_custom_category(cls, value):
+        if isinstance(value, str):
+            value = value.strip()
+            return value or None
+        return value
+
     @model_validator(mode="after")
     def cross(self):
+        if self.declared_category == "other" and not self.custom_category:
+            raise ValueError("custom_category is required when declared_category is other")
+        if self.declared_category != "other" and self.custom_category:
+            raise ValueError("custom_category is only allowed when declared_category is other")
         if self.physical_state == "solid" and self.net_quantity_unit not in ("g", "kg"):
             raise ValueError("solid products must use net_quantity_unit g or kg")
         if self.physical_state == "liquid" and self.net_quantity_unit not in ("ml", "l"):
@@ -83,7 +117,8 @@ class LabelRequest(BaseModel):
         d = {"product_name": self.product_name, "brand_name": self.brand_name or "",
              "ingredients_text": self.ingredients_text, "allergen_statement": self.allergen_statement or "",
              "manufacturer_name": self.manufacturer_name or "", "manufacturer_address": self.manufacturer_address or "",
-             "country_of_origin": self.country_of_origin or ""}
+             "country_of_origin": self.country_of_origin or "",
+             "custom_category": self.custom_category or ""}
         for i, t in enumerate(self.front_of_pack_text):
             d[f"front_of_pack_text[{i}]"] = t
         return d

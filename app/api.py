@@ -94,7 +94,7 @@ def metrics():
 
 @app.get("/", response_class=HTMLResponse)
 def ui():
-    return WEB.read_text()
+    return WEB.read_text(encoding="utf-8")
 
 
 @app.get("/v1/contract")
@@ -117,6 +117,8 @@ async def submit(request: Request, response: Response, payload=Body(..., descrip
     if not ok:
         obs.RATE_LIMITED.labels("client").inc()
         return JSONResponse({"error": "rate_limited", "retry_after_s": retry}, status_code=429, headers={"Retry-After": str(retry)})
+    if fault is not None and fault not in {"unsupported", "persistent"}:
+        return JSONResponse({"error": "invalid_fault_injection"}, status_code=400)
     req, errs = validate_request(payload)
     if errs:  # F2/D1: rejected BEFORE any agent starts; quarantined with field-level errors
         qid = runs.quarantine(r, payload, errs, client)
@@ -129,6 +131,12 @@ async def submit(request: Request, response: Response, payload=Body(..., descrip
     if idempotency_key:
         prev = r.get(f"idem:{client}:{idempotency_key}")
         if prev:
+            previous_run = runs.get_run(r, prev)
+            if previous_run and runs.canon_hash(json.loads(previous_run["request"])) != runs.canon_hash(data):
+                return JSONResponse(
+                    {"error": "idempotency_key_reused_with_different_request"},
+                    status_code=409,
+                )
             return {"run_id": prev, "status_url": f"/v1/runs/{prev}", "idempotent_replay": True}
     cid = correlation_id.get()
     idx_v = (_index_meta() or {}).get("index_version", "none")
@@ -191,7 +199,18 @@ def trace(run_id: str):
     return {"run_id": run_id, "status": rec["status"], "correlation_id": rec["correlation_id"], "request": json.loads(rec["request"]),
             "events": ev, "per_step_latency_ms": [{"agent": e["agent"], "step": f"{e['kind']}:{e['name']}", "ms": e["latency_ms"]} for e in steps],
             "cost_per_step": cost, "total_cost_usd": round(sum(c["cost_usd"] for c in cost.values()), 6),
-            "passages_retrieved": [{"chunk_id": k, "clause_id": v["clause_id"], "text": v["text"]} for k, v in (bundle or {}).get("passages", {}).items()],
+            "passages_retrieved": [
+                {
+                    "chunk_id": chunk_id,
+                    "doc_id": passage.get("doc_id"),
+                    "doc_title": passage.get("doc_title"),
+                    "doc_version": passage.get("doc_version"),
+                    "clause_id": passage["clause_id"],
+                    "title": passage.get("title"),
+                    "text": passage["text"],
+                }
+                for chunk_id, passage in (bundle or {}).get("passages", {}).items()
+            ],
             "verification": (json.loads(rec["result"]).get("verification") if rec.get("result") else None),
             "prompt_version": S.prompt_version}
 

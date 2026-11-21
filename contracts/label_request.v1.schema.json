@@ -181,16 +181,41 @@
       "enum": [
         "unspecified",
         "biscuits_bakery",
+        "beverages_juices",
+        "dairy_products",
+        "snacks_savoury",
+        "confectionery_chocolates",
+        "cereals_breakfast",
+        "instant_ready_to_eat",
+        "spices_seasonings",
+        "sauces_dips_condiments",
+        "edible_oils_fats",
+        "pulses_packaged_grains",
+        "nutritional_health_foods",
+        "other",
         "dairy",
         "beverages",
         "meat_fish",
         "infant_nutrition",
         "supplements",
-        "confectionery",
-        "other"
+        "confectionery"
       ],
       "title": "Declared Category",
       "type": "string"
+    },
+    "custom_category": {
+      "anyOf": [
+        {
+          "maxLength": 80,
+          "minLength": 2,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Custom Category"
     },
     "physical_state": {
       "enum": [
